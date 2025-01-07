@@ -8,18 +8,47 @@ const kafka = new Kafka({
 });
 
 const producer = kafka.producer();
+const admin = kafka.admin();
 
-let messageCount = 0;
-const maxMessages = 5; // Disconnect after sending 5 messages
+const topicName = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING;  // Topic name from .env
+
+const checkAndCreateTopic = async () => {
+  try {
+    await admin.connect();
+    console.log('Admin connected');
+
+    // Check if the topic already exists
+    const topics = await admin.listTopics();
+    if (!topics.includes(topicName)) {
+      // If the topic doesn't exist, create it
+      console.log(`Topic '${topicName}' not found. Creating topic...`);
+      await admin.createTopics({
+        topics: [{ topic: topicName }],
+        waitForLeaders: true,  // Wait until all partitions are assigned to a leader
+      });
+      console.log(`Topic '${topicName}' created successfully`);
+    } else {
+      console.log(`Topic '${topicName}' already exists`);
+    }
+  } catch (error) {
+    console.error('Error checking or creating topic:', error);
+  } finally {
+    await admin.disconnect();
+    console.log('Admin disconnected');
+  }
+};
 
 const runProducer = async () => {
   await producer.connect();
   console.log('Producer connected');
 
   // Send messages to the Kafka topic
+  let messageCount = 0;
+  const maxMessages = 5;
+
   while (messageCount < maxMessages) {
     await producer.send({
-      topic: process.env.KAFKA_TOPIC_SPOT_ORDER,
+      topic: topicName,
       messages: [
         { value: `Message #${messageCount + 1}` },
       ],
@@ -37,12 +66,8 @@ const runProducer = async () => {
   }
 };
 
-// Run the producer
-runProducer().catch(console.error);
+// Run the topic check and producer
+checkAndCreateTopic().then(runProducer).catch(console.error);
 
-// Optional: Gracefully handle shutdown
-process.on('SIGINT', async () => {
-  await producer.disconnect();
-  console.log('Producer disconnected');
-  process.exit(0);
-});
+// Export the runConsumer function
+module.exports = { checkAndCreateTopic };

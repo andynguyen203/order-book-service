@@ -9,7 +9,9 @@ const kafka = new Kafka({
   brokers: process.env.KAFKA_BROKERS.split(','),  // Parse brokers from .env
 });
 
-const consumer = kafka.consumer({ groupId: process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING });
+const groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP;  // Topic name from .env
+const topicName = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING;  // Topic name from .env
+const consumer = kafka.consumer({ groupId: groupName });
 
 let messageCount = 0;
 const maxMessages = 5; // Disconnect after receiving 5 messages
@@ -19,7 +21,7 @@ const run = async () => {
   await consumer.connect();
 
   // Subscribe to a Kafka topic (e.g., 'my-topic')
-  await consumer.subscribe({ topic: 'my-topic', fromBeginning: true });
+  await consumer.subscribe({ topic: topicName, fromBeginning: true });
 
   // Run the consumer to process incoming messages
   await consumer.run({
