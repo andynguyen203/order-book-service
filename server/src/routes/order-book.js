@@ -5,5 +5,6 @@ const router = express.Router();
 const orderbookController = require('../controllers/order-book-service');
 
 router.get('/example', orderbookController.getExampleData);
+router.get('/orderbook', orderbookController.getOrderBook);
 
 module.exports = router;

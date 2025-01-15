@@ -1,92 +1,94 @@
 const { OrderBook, OrderSide, Side, OrderType } = require("nodejs-order-book");
+const { v4: uuidv4 } = require('uuid');
+
+function generateOrderId() {
+  return uuidv4();
+}
 
 // Khởi tạo order book với các tham số như tick size và depth
 const orderBook = new OrderBook({
   tickSize: 0.01, // Granularity (tính giá trị nhỏ nhất của đơn hàng)
   depth: 100, // Số lượng đơn hàng có thể lưu trữ
 });
+const _maps = new Map();
+_maps.set('BTC', new OrderBook({ tickSize: 0.01, depth: 100, }));
+_maps.set('ETH', new OrderBook({ tickSize: 0.01, depth: 100, }));
 
-// Hàm thêm lệnh vào order book
-function addOrder(order) {
+function addOrder(symbol, order) {
   try {
-    const or = orderBook.createOrder(order);
-    console.log(`Đã thêm lệnh: ${JSON.stringify(order)}`);
-    return or;
+    const orderBook = _maps.get(symbol);
+    if (!orderBook) throw new Error(`Order book for ${symbol} not found`);
+
+    const addedOrder = orderBook.createOrder(order);
+    console.log(`Order added to ${symbol}: ${JSON.stringify(order)}`);
+    return addedOrder;
   } catch (error) {
-    console.error("Lỗi khi thêm lệnh:", error);
+    console.error(`Error adding order for ${symbol}:`, error);
     throw error;
   }
 }
 
-// Hàm kiểm tra và khớp lệnh trong order book
-function matchOrders() {
-  return true;
-  // Lấy các side của order book
-  const bids = orderBook.bids; // Lệnh mua (buy)
-  const asks = orderBook.asks; // Lệnh bán (sell)
+function matchOrders(symbol) {
+  const orderBook = _maps.get(symbol);
+  if (!orderBook) throw new Error(`Order book for ${symbol} not found`);
 
-  // Tìm "best bid" (lệnh mua cao nhất) và "best ask" (lệnh bán thấp nhất)
-  const bestBid = bids.maxPriceQueue(); // Lệnh mua cao nhất
-  const bestAsk = asks.minPriceQueue(); // Lệnh bán thấp nhất
-
-  if (bestBid && bestAsk && bestBid.price() >= bestAsk.price()) {
-    const tradeQuantity = Math.min(bestBid.volume(), bestAsk.volume()); // Số lượng giao dịch
-    const tradePrice = bestAsk.price(); // Giá giao dịch
-
-    // Thực hiện giao dịch (thực tế bạn sẽ chuyển tiền hoặc tài sản ở đây)
-    console.log(
-      `Giao dịch đã được thực hiện: ${tradeQuantity} với giá ${tradePrice}`
-    );
-
-    // Loại bỏ các lệnh đã khớp từ order book
-    orderBook.removeOrder(bestBid);
-    orderBook.removeOrder(bestAsk);
-
-    return { price: tradePrice, quantity: tradeQuantity };
-  } else {
-    console.log("Không có lệnh phù hợp để khớp");
-    return null;
+  const trades = orderBook.matchOrders();
+  if (trades.length > 0) {
+    console.log(`Matched trades for ${symbol}:`, trades);
+    return trades;
   }
+
+  console.log(`No trades matched for ${symbol}`);
+  return null;
 }
 
-// API để đặt lệnh mua hoặc bán
+exports.getOrderBook = (req, res) => {
+  const btcOB = _maps.get('BTC');
+  const ethOB = _maps.get('ETH');
+
+  res.json({
+    BTC: btcOB ? btcOB.toJSON() : null,
+    ETH: ethOB ? ethOB.toJSON() : null,
+  });
+};
+
 exports.getExampleData = async (req, res) => {
   try {
-    const { price, size, side } = req.body; // Nhận thông tin lệnh từ yêu cầu
+    const { price, size, side, symbol } = req.body;
 
-    // Kiểm tra giá trị hợp lệ của lệnh
-    if (price <= 0 || size <= 0) {
-      return res
-        .status(400)
-        .json({ message: "Giá hoặc số lượng không hợp lệ" });
+    if (!price || price <= 0 || !size || size <= 0) {
+      return res.status(400).json({ message: "Invalid price or size" });
     }
 
-    // const order = { price: 100, size: 5, side: Side.BUY };
+    const orderId = generateOrderId();
 
-    // Đếm số lượng đơn hàng đã thêm vào order book
-    let orderIdCounter = 1;
-    // Thêm lệnh vào order book
-    addOrder({ id: `order-${orderIdCounter++}`, price: 120, size: 3, side: Side.SELL, type: OrderType.LIMIT });
-    addOrder({ id: `order-${orderIdCounter++}`, price: 120, size: 3, side: Side.SELL, type: OrderType.LIMIT });
-    addOrder({ id: `order-${orderIdCounter++}`, price: 120, size: 1, side: Side.SELL, type: OrderType.LIMIT });
+    const order = {
+      id: orderId,
+      price,
+      size,
+      side,
+      type: OrderType.LIMIT,
+    };
 
-    const or = addOrder({ id: `order-${orderIdCounter++}`,price: 120, size: 8, side: Side.BUY, type: OrderType.LIMIT });
+    const addedOrder = addOrder(symbol, order);
 
-    // Kiểm tra và thực hiện khớp lệnh
-    const trade = matchOrders();
+    // Thực hiện khớp lệnh
+    const trades = matchOrders(symbol);
 
-    if (trade) {
+    if (trades) {
       return res.json({
-        message: "Giao dịch đã được thực hiện thành công",
-        order: or,
-      });
-    } else {
-      return res.json({
-        message: "Lệnh đã được thêm vào order book",
+        message: "Trade executed successfully",
+        trades,
       });
     }
+
+    return res.json({
+      message: "Order added to the order book",
+      order: addedOrder,
+    });
   } catch (error) {
-    console.error("Lỗi khi đặt lệnh:", error);
-    return res.status(500).json({ message: "Lỗi khi xử lý lệnh" });
+    console.error("Error processing order:", error);
+    return res.status(500).json({ message: "Internal server error" });
   }
 };
+
