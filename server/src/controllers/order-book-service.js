@@ -1,15 +1,10 @@
-const { OrderBook, OrderSide, Side, OrderType } = require("nodejs-order-book");
+const { OrderBook, Side, OrderType } = require("nodejs-order-book");
 const { v4: uuidv4 } = require('uuid');
 
 function generateOrderId() {
   return uuidv4();
 }
 
-// Khởi tạo order book với các tham số như tick size và depth
-const orderBook = new OrderBook({
-  tickSize: 0.01, // Granularity (tính giá trị nhỏ nhất của đơn hàng)
-  depth: 100, // Số lượng đơn hàng có thể lưu trữ
-});
 const _maps = new Map();
 _maps.set('BTC', new OrderBook({ tickSize: 0.01, depth: 100, }));
 _maps.set('ETH', new OrderBook({ tickSize: 0.01, depth: 100, }));
@@ -31,7 +26,7 @@ function addOrder(symbol, order) {
 function matchOrders(symbol) {
   const orderBook = _maps.get(symbol);
   if (!orderBook) throw new Error(`Order book for ${symbol} not found`);
-
+  return orderBook;
   const trades = orderBook.matchOrders();
   if (trades.length > 0) {
     console.log(`Matched trades for ${symbol}:`, trades);
@@ -47,8 +42,8 @@ exports.getOrderBook = (req, res) => {
   const ethOB = _maps.get('ETH');
 
   res.json({
-    BTC: btcOB ? btcOB.toJSON() : null,
-    ETH: ethOB ? ethOB.toJSON() : null,
+    btcOB ,
+    ethOB 
   });
 };
 
@@ -56,29 +51,24 @@ exports.getExampleData = async (req, res) => {
   try {
     const { price, size, side, symbol } = req.body;
 
-    if (!price || price <= 0 || !size || size <= 0) {
+    if (price <= 0 || size <= 0) {
       return res.status(400).json({ message: "Invalid price or size" });
     }
 
-    const orderId = generateOrderId();
+    addOrder('ETH', { id: generateOrderId(),  price: 120, size: 3,  side: Side.SELL,  type: OrderType.LIMIT,});
+    addOrder('ETH', { id: generateOrderId(),  price: 120, size: 1,  side: Side.SELL,  type: OrderType.LIMIT,});
+    addOrder('ETH', { id: generateOrderId(),  price: 120, size: 2,  side: Side.SELL,  type: OrderType.LIMIT,});
+    const or = addOrder('ETH', { id: generateOrderId(),  price: 120, size: 7,  side: Side.BUY,  type: OrderType.LIMIT,});
 
-    const order = {
-      id: orderId,
-      price,
-      size,
-      side,
-      type: OrderType.LIMIT,
-    };
-
-    const addedOrder = addOrder(symbol, order);
+    // const addedOrder = addOrder(symbol, order);
 
     // Thực hiện khớp lệnh
-    const trades = matchOrders(symbol);
+    const trades = matchOrders('ETH');
 
     if (trades) {
       return res.json({
         message: "Trade executed successfully",
-        trades,
+        or,
       });
     }
 
