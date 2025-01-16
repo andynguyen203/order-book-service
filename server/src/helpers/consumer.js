@@ -1,45 +1,86 @@
 require('dotenv').config({
-  path: process.cwd() + '/server/src/config/.env'
-});  // Load environment variables from .env file
-const { Kafka } = require('kafkajs');
-
-// Use environment variables for Kafka configuration
-const kafka = new Kafka({
-  clientId: process.env.KAFKA_CLIENT_ID,  // Get client ID from .env
-  brokers: process.env.KAFKA_BROKERS.split(','),  // Parse brokers from .env
+  path: process.cwd() + '/server/src/config/.env',
 });
+const { Kafka } = require('kafkajs');
+const orderBookHelper = require('./order-book-helper');
 
-const groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP;  // Topic name from .env
-const topicName = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING;  // Topic name from .env
-const consumer = kafka.consumer({ groupId: groupName });
+class KafkaSpotOrderProcessor {
+  constructor() {
+    this.kafka = new Kafka({
+      clientId: process.env.KAFKA_CLIENT_ID,
+      brokers: process.env.KAFKA_BROKERS?.split(','),
+    });
 
-let messageCount = 0;
-const maxMessages = 5; // Disconnect after receiving 5 messages
+    this.groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP; 
+    this.topicPending = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING; 
+    this.topicComplete = process.env.KAFKA_TOPIC_SPOT_ORDER_COMPLETE; 
+  }
 
-const run = async () => {
-  // Connect to the Kafka broker
-  await consumer.connect();
+  async processPendingOrders() {
+    const consumer = this.kafka.consumer({ groupId: this.groupName });
+    await consumer.connect();
+    await consumer.subscribe({ topic: this.topicPending, fromBeginning: true });
 
-  // Subscribe to a Kafka topic (e.g., 'my-topic')
-  await consumer.subscribe({ topic: topicName, fromBeginning: true });
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        const messageValue = message.value.toString();
+        console.log(`[Pending Orders] Received: ${messageValue}`);
 
-  // Run the consumer to process incoming messages
-  await consumer.run({
-    eachMessage: async ({ topic, partition, message }) => {
-      console.log(`Received message: ${message.value.toString()}`);
+        try {
+          const orderData = JSON.parse(messageValue);
+          console.log(orderData)
 
-      // Increment message count
-      messageCount++;
+          const tradingPair = orderData.baseAsset + orderData.quoteAsset;
 
-      // If the message count reaches the threshold, disconnect the consumer
-      if (messageCount >= maxMessages) {
-        console.log('Max messages received, disconnecting...');
-        await consumer.disconnect();
-        console.log('Consumer disconnected');
-      }
-    },
-  });
-};
+          orderBookHelper.addOrder(tradingPair, orderData);
+          orderBookHelper.printOrder()
+          console.log(`[Pending Orders] Order added to ${symbol} order book.`);
+        } catch (error) {
+          console.error(`[Pending Orders] Error: ${error.message}`);
+        }
+      },
+    });
+  }
 
-// Export the runConsumer function
-module.exports = { runConsumer: run };
+  /**
+   * Process completed orders
+   */
+  async processCompletedOrders() {
+    const consumer = this.kafka.consumer({ groupId: this.groupName });
+    await consumer.connect();
+    await consumer.subscribe({ topic: this.topicComplete, fromBeginning: true });
+
+    await consumer.run({
+      eachMessage: async ({ topic, partition, message }) => {
+        const messageValue = message.value.toString();
+        console.log(`[Completed Orders] Received: ${messageValue}`);
+
+        try {
+          const orderData = JSON.parse(messageValue);
+          console.log(orderData)
+          const { symbol, order } = orderData;
+
+          // Remove the order from the order book
+          orderBookHelper.removeOrder(symbol, order);
+          console.log(`[Completed Orders] Order removed from ${symbol} order book.`);
+        } catch (error) {
+          console.error(`[Completed Orders] Error: ${error.message}`);
+        }
+      },
+    });
+  }
+
+  /**
+   * Start all Kafka consumers
+   */
+  async startConsumers() {
+    console.log('Starting Kafka consumers...');
+    await Promise.all([this.processPendingOrders(), this.processCompletedOrders()]);
+    console.log('Kafka consumers are running.');
+  }
+}
+
+const kafkaSpotOrderProcessor = new KafkaSpotOrderProcessor();
+
+module.exports = kafkaSpotOrderProcessor;
+
