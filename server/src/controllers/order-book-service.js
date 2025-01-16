@@ -58,7 +58,7 @@ exports.getExampleData = async (req, res) => {
     addOrder('ETH', { id: generateOrderId(),  price: 120, size: 3,  side: Side.SELL,  type: OrderType.LIMIT,});
     addOrder('ETH', { id: generateOrderId(),  price: 120, size: 1,  side: Side.SELL,  type: OrderType.LIMIT,});
     addOrder('ETH', { id: generateOrderId(),  price: 120, size: 2,  side: Side.SELL,  type: OrderType.LIMIT,});
-    const or = addOrder('ETH', { id: generateOrderId(),  price: 120, size: 7,  side: Side.BUY,  type: OrderType.LIMIT,});
+    const or = addOrder('ETH', { id: generateOrderId(),  price: 130, size: 7,  side: Side.BUY,  type: OrderType.LIMIT,});
 
     // const addedOrder = addOrder(symbol, order);
 

@@ -1,19 +1,25 @@
 require('dotenv').config({
   path: process.cwd() + '/server/src/config/.env',
 });
-const { Kafka } = require('kafkajs');
-const orderBookHelper = require('./order-book-helper');
 
-class KafkaSpotOrderProcessor {
+import  { Kafka } from 'kafkajs';
+import orderBookHelper from "./order-book-helper";
+
+ class KafkaSpotOrderProcessor {
+  private kafka;
+  private groupName: string;
+  private topicPending: string;
+  private topicComplete: string;
+
   constructor() {
     this.kafka = new Kafka({
       clientId: process.env.KAFKA_CLIENT_ID,
-      brokers: process.env.KAFKA_BROKERS?.split(','),
+      brokers: process.env.KAFKA_BROKERS?.split(',') || [],
     });
 
-    this.groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP; 
-    this.topicPending = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING; 
-    this.topicComplete = process.env.KAFKA_TOPIC_SPOT_ORDER_COMPLETE; 
+    this.groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP || "";
+    this.topicPending = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING || "";
+    this.topicComplete = process.env.KAFKA_TOPIC_SPOT_ORDER_COMPLETE || "";
   }
 
   async processPendingOrders() {
@@ -31,10 +37,9 @@ class KafkaSpotOrderProcessor {
           console.log(orderData)
 
           const tradingPair = orderData.baseAsset + orderData.quoteAsset;
-
+          console.log(tradingPair)
           orderBookHelper.addOrder(tradingPair, orderData);
-          orderBookHelper.printOrder()
-          console.log(`[Pending Orders] Order added to ${symbol} order book.`);
+          console.log(`[Pending Orders] Order added to ${tradingPair} order book.`);
         } catch (error) {
           console.error(`[Pending Orders] Error: ${error.message}`);
         }
@@ -70,17 +75,10 @@ class KafkaSpotOrderProcessor {
     });
   }
 
-  /**
-   * Start all Kafka consumers
-   */
   async startConsumers() {
-    console.log('Starting Kafka consumers...');
     await Promise.all([this.processPendingOrders(), this.processCompletedOrders()]);
     console.log('Kafka consumers are running.');
   }
 }
 
-const kafkaSpotOrderProcessor = new KafkaSpotOrderProcessor();
-
-module.exports = kafkaSpotOrderProcessor;
-
+export default KafkaSpotOrderProcessor

@@ -1,7 +1,9 @@
 const { OrderBook } = require("nodejs-order-book");
 
 class OrderBookHelper {
-  constructor(tradingPairs = []) {
+  private _orderBooks; 
+
+  constructor(tradingPairs: string[] = []) {
     this._orderBooks = new Map();
     tradingPairs.forEach(pair => this._orderBooks.set(pair, new OrderBook()));
   }
@@ -28,8 +30,16 @@ class OrderBookHelper {
     return orderBook;
   }
 
-  addOrder(symbol, order) {
-    const orderBook = this.getOrderBook(symbol);
+  addOrder(tradingPair, orderData) {
+    const orderBook = this.getOrderBook(tradingPair);
+    const order = {
+      id: orderData._id,
+      price: orderData.price,
+      size: orderData.origSize,
+      timeInForce: orderData.timeInForce,
+      side: orderBook.side,
+      type: orderBook.type
+    }
     orderBook.addOrder(order);
   }
 
@@ -62,8 +72,8 @@ class OrderBookHelper {
 }
 
 
-const tradingPairs = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
-const orderBookHelper = new OrderBookHelper(tradingPairs);
+// const tradingPairs = ['BTCUSDT', 'ETHUSDT', 'SOLUSDT'];
+const orderBookHelper = new OrderBookHelper(['BTCUSDT', 'ETHUSDT', 'SOLUSDT']);
 
-module.exports = orderBookHelper;
+export default orderBookHelper;
 

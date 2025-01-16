@@ -20,4 +20,4 @@ app.get('/', (req, res) => {
 const orderbookRoutes = require('./routes/order-book');
 app.use('/api', orderbookRoutes);
 
-module.exports = app;
+export default app;
