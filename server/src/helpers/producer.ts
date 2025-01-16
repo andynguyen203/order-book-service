@@ -1,24 +1,28 @@
-require('dotenv').config();  // Load environment variables from .env file
-const { Kafka } = require('kafkajs');
+// require('dotenv').config();  // Load environment variables from .env file
+import { Kafka } from 'kafkajs';
+import dotenv from 'dotenv';
+dotenv.config({ path: '../config/.env' });
 
-// Create a Kafka instance using environment variables
 const kafka = new Kafka({
-  clientId: process.env.KAFKA_CLIENT_ID,  // Get client ID from .env
-  brokers: process.env.KAFKA_BROKERS?.split(','),  // Parse brokers from .env
+  clientId: process.env.KAFKA_CLIENT_ID,
+  brokers: process.env.KAFKA_BROKERS?.split(',') || ["localhost:9092"],
 });
 
 const producer = kafka.producer();
 const admin = kafka.admin();
 
-const topicName = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING;  // Topic name from .env
+const topicName = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING;
 
-const checkAndCreateTopic = async () => {
+export const checkAndCreateTopic = async () => {
   try {
     await admin.connect();
     console.log('Admin connected');
 
     // Check if the topic already exists
     const topics = await admin.listTopics();
+    if (!topicName) {
+      throw new Error('KAFKA_TOPIC_SPOT_ORDER_GROUP is not defined in .env');
+    }
     if (!topics.includes(topicName)) {
       // If the topic doesn't exist, create it
       console.log(`Topic '${topicName}' not found. Creating topic...`);
@@ -38,7 +42,7 @@ const checkAndCreateTopic = async () => {
   }
 };
 
-const runProducer = async () => {
+export const runProducer = async () => {
   await producer.connect();
   console.log('Producer connected');
 
@@ -70,4 +74,4 @@ const runProducer = async () => {
 checkAndCreateTopic().then(runProducer).catch(console.error);
 
 // Export the runConsumer function
-module.exports = { checkAndCreateTopic };
+

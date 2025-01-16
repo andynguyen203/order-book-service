@@ -1,7 +1,7 @@
-// source: https://jestjs.io/docs/code-transformation#examples
-const path = require('node:path')
-module.exports = {
-  process (_src, filename) {
-    return `module.exports = ${JSON.stringify(path.basename(filename))};`
+import path from 'node:path';
+
+export default {
+  process(_src, filename) {
+    return `export default ${JSON.stringify(path.basename(filename))};`;
   }
-}
+};

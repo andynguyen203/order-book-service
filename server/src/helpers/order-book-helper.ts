@@ -1,36 +1,36 @@
-const { OrderBook } = require("nodejs-order-book");
+import { OrderBook } from "nodejs-order-book";
 
 class OrderBookHelper {
-  private _orderBooks; 
+  private _orderBooks;
 
   constructor(tradingPairs: string[] = []) {
     this._orderBooks = new Map();
     tradingPairs.forEach(pair => this._orderBooks.set(pair, new OrderBook()));
   }
 
-  addOrderBook(symbol) {
-    if (this._orderBooks.has(symbol)) {
-      throw new Error(`OrderBook for symbol ${symbol} already exists`);
+  addOrderBook(tradingPair: string) {
+    if (this._orderBooks.has(tradingPair)) {
+      throw new Error(`OrderBook for tradingPair ${tradingPair} already exists`);
     }
-    this._orderBooks.set(symbol, new OrderBook());
+    this._orderBooks.set(tradingPair, new OrderBook());
   }
 
-  removeOrderBook(symbol) {
-    if (!this._orderBooks.has(symbol)) {
-      throw new Error(`OrderBook for symbol ${symbol} does not exist`);
+  removeOrderBook(tradingPair: string) {
+    if (!this._orderBooks.has(tradingPair)) {
+      throw new Error(`OrderBook for tradingPair ${tradingPair} does not exist`);
     }
-    this._orderBooks.delete(symbol);
+    this._orderBooks.delete(tradingPair);
   }
 
-  getOrderBook(symbol) {
-    const orderBook = this._orderBooks.get(symbol);
+  getOrderBook(tradingPair: string) {
+    const orderBook = this._orderBooks.get(tradingPair);
     if (!orderBook) {
-      throw new Error(`OrderBook for symbol ${symbol} does not exist`);
+      throw new Error(`OrderBook for tradingPair ${tradingPair} does not exist`);
     }
     return orderBook;
   }
 
-  addOrder(tradingPair, orderData) {
+  addOrder(tradingPair: string, orderData: any) {
     const orderBook = this.getOrderBook(tradingPair);
     const order = {
       id: orderData._id,
@@ -43,32 +43,32 @@ class OrderBookHelper {
     orderBook.addOrder(order);
   }
 
-  removeOrder(symbol, order) {
-    const orderBook = this.getOrderBook(symbol);
+  removeOrder(tradingPair: string, order: any) {
+    const orderBook = this.getOrderBook(tradingPair);
     orderBook.removeOrder(order);
   }
 
-  matchOrders(symbol, marketOrder) {
-    const orderBook = this.getOrderBook(symbol);
+  matchOrders(tradingPair: string, marketOrder: any) {
+    const orderBook = this.getOrderBook(tradingPair);
     return orderBook.matchOrders(marketOrder);
   }
 
-  getOrderBookStats(symbol) {
-    const orderBook = this.getOrderBook(symbol);
+  getOrderBookStats(tradingPair: string) {
+    const orderBook = this.getOrderBook(tradingPair);
     return orderBook.getStats();
   }
 
-  getSymbols() {
+  gettradingPairs() {
     return Array.from(this._orderBooks.keys());
   }
 
-  getAllStats() {
-    const stats = {};
-    for (const [symbol, orderBook] of this._orderBooks.entries()) {
-      stats[symbol] = orderBook.getStats();
-    }
-    return stats;
-  }
+  // getAllStats() {
+  //   const stats: any = {};
+  //   for (const [tradingPair, orderBook] of this._orderBooks.entries()) {
+  //     stats[tradingPair] = orderBook.getStats();
+  //   }
+  //   return stats;
+  // }
 }
 
 

@@ -1,11 +1,11 @@
-require('dotenv').config({
-  path: process.cwd() + '/server/src/config/.env',
-});
+// require('dotenv').config({
+//   path: process.cwd() + '/server/src/config/.env',
+// });
 
-import  { Kafka } from 'kafkajs';
+import { Kafka } from 'kafkajs';
 import orderBookHelper from "./order-book-helper";
 
- class KafkaSpotOrderProcessor {
+class KafkaSpotOrderProcessor {
   private kafka;
   private groupName: string;
   private topicPending: string;
@@ -17,7 +17,7 @@ import orderBookHelper from "./order-book-helper";
       brokers: process.env.KAFKA_BROKERS?.split(',') || [],
     });
 
-    this.groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP || "";
+    this.groupName = process.env.KAFKA_TOPIC_SPOT_ORDER_GROUP || "spot-order-group";
     this.topicPending = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING || "";
     this.topicComplete = process.env.KAFKA_TOPIC_SPOT_ORDER_COMPLETE || "";
   }
@@ -29,20 +29,22 @@ import orderBookHelper from "./order-book-helper";
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        const messageValue = message.value.toString();
+        const messageValue = message?.value?.toString();
         console.log(`[Pending Orders] Received: ${messageValue}`);
+        if (messageValue) {
+          try {
+            const orderData = JSON.parse(messageValue);
+            console.log(orderData)
 
-        try {
-          const orderData = JSON.parse(messageValue);
-          console.log(orderData)
-
-          const tradingPair = orderData.baseAsset + orderData.quoteAsset;
-          console.log(tradingPair)
-          orderBookHelper.addOrder(tradingPair, orderData);
-          console.log(`[Pending Orders] Order added to ${tradingPair} order book.`);
-        } catch (error) {
-          console.error(`[Pending Orders] Error: ${error.message}`);
+            const tradingPair = orderData.baseAsset + orderData.quoteAsset;
+            console.log(tradingPair)
+            orderBookHelper.addOrder(tradingPair, orderData);
+            console.log(`[Pending Orders] Order added to ${tradingPair} order book.`);
+          } catch (error: any) {
+            console.error(`[Pending Orders] Error: ${error.message}`);
+          }
         }
+
       },
     });
   }
@@ -57,9 +59,9 @@ import orderBookHelper from "./order-book-helper";
 
     await consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
-        const messageValue = message.value.toString();
+        const messageValue = message?.value?.toString();
         console.log(`[Completed Orders] Received: ${messageValue}`);
-
+        if (!messageValue) return;
         try {
           const orderData = JSON.parse(messageValue);
           console.log(orderData)
@@ -68,7 +70,7 @@ import orderBookHelper from "./order-book-helper";
           // Remove the order from the order book
           orderBookHelper.removeOrder(symbol, order);
           console.log(`[Completed Orders] Order removed from ${symbol} order book.`);
-        } catch (error) {
+        } catch (error: any) {
           console.error(`[Completed Orders] Error: ${error.message}`);
         }
       },
@@ -80,5 +82,4 @@ import orderBookHelper from "./order-book-helper";
     console.log('Kafka consumers are running.');
   }
 }
-
 export default KafkaSpotOrderProcessor
