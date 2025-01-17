@@ -1,9 +1,9 @@
-// require('dotenv').config({
-//   path: process.cwd() + '/server/src/config/.env',
-// });
-
 import { Kafka } from 'kafkajs';
 import orderBookHelper from "./order-book-helper";
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 class KafkaSpotOrderProcessor {
   private kafka;
@@ -67,7 +67,6 @@ class KafkaSpotOrderProcessor {
           console.log(orderData)
           const { symbol, order } = orderData;
 
-          // Remove the order from the order book
           orderBookHelper.removeOrder(symbol, order);
           console.log(`[Completed Orders] Order removed from ${symbol} order book.`);
         } catch (error: any) {

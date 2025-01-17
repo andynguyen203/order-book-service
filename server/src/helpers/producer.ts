@@ -1,7 +1,8 @@
-// require('dotenv').config();  // Load environment variables from .env file
 import { Kafka } from 'kafkajs';
 import dotenv from 'dotenv';
-dotenv.config({ path: '../config/.env' });
+import path from 'path';
+
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 const kafka = new Kafka({
   clientId: process.env.KAFKA_CLIENT_ID,
@@ -12,23 +13,22 @@ const producer = kafka.producer();
 const admin = kafka.admin();
 
 const topicName = process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING;
+console.log('KAFKA_TOPIC_SPOT_ORDER_PENDING:', process.env.KAFKA_TOPIC_SPOT_ORDER_PENDING);
 
 export const checkAndCreateTopic = async () => {
   try {
     await admin.connect();
     console.log('Admin connected');
 
-    // Check if the topic already exists
     const topics = await admin.listTopics();
     if (!topicName) {
       throw new Error('KAFKA_TOPIC_SPOT_ORDER_GROUP is not defined in .env');
     }
     if (!topics.includes(topicName)) {
-      // If the topic doesn't exist, create it
       console.log(`Topic '${topicName}' not found. Creating topic...`);
       await admin.createTopics({
         topics: [{ topic: topicName }],
-        waitForLeaders: true,  // Wait until all partitions are assigned to a leader
+        waitForLeaders: true,  
       });
       console.log(`Topic '${topicName}' created successfully`);
     } else {
