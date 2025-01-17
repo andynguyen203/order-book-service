@@ -1,18 +1,15 @@
-// import app from 'app';
+import express from 'express';
+import bodyParser from 'body-parser';
+import dotenv from 'dotenv';
+import morgan from 'morgan';
 import KafkaSpotOrderProcessor from './helpers/consumer';
 import { checkAndCreateTopic } from './helpers/producer';
 
-import { config } from 'dotenv';
-config();
+dotenv.config();
 
-// const PORT = process.env.PORT || 5000;
+const app = express();
+const PORT = process.env.PORT || 6666;
 
-// const startServer = () => {
-//   // Start the Express server
-//   app.listen(PORT, () => {
-//     console.log(`Server is running on port ${PORT}`);
-//   });
-// };
 
 const startConsumer = async () => {
   try {
@@ -25,7 +22,16 @@ const startConsumer = async () => {
   }
 };
 
-const startApplication = async () => {
+app.use(bodyParser.json());
+app.use(morgan('dev'));
+
+app.get('/', (req, res) => {
+  res.send('Hello, World!');
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+  const startApplication = async () => {
   try {
     await checkAndCreateTopic();
     await startConsumer(); 
@@ -36,3 +42,4 @@ const startApplication = async () => {
 };
 
 startApplication(); 
+});
