@@ -2,6 +2,7 @@ import { Kafka } from 'kafkajs';
 import orderBookHelper from "./order-book-helper";
 import dotenv from 'dotenv';
 import path from 'path';
+import TestOrderBookService from '../test/orderbook.service';
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
@@ -122,6 +123,12 @@ class KafkaSpotOrderProcessor {
       await this.checkAndCreateTopic();
       await this.producer.connect();
 
+      const testService = new TestOrderBookService();
+      const ob = orderBookHelper.getOrderBook('ETHUSDT');
+      testService.testAdd4BuyOrder1SellOrderMatchNoOrder(ob);
+      console.log("-------------------------------------------------");
+      console.log(ob.snapshot());
+      
       await this.processPendingOrders();
       console.log('Kafka consumers are running.');
     } catch (error:any) {
